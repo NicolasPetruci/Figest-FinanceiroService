@@ -7,6 +7,4 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Refatorado para melhor legibilidade
 
-// Ajustes de performance na inicialização
