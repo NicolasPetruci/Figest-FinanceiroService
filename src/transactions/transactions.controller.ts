@@ -21,6 +21,15 @@ export class TransactionsController {
     return this.transactionsService.bulkUpdate(userId, body);
   }
 
+  @Patch('import-batch/:batchId')
+  updateImportBatch(
+    @UserId() userId: string,
+    @Param('batchId') batchId: string,
+    @Body() body: { accountId?: string; subtag?: string; categoryId?: string },
+  ) {
+    return this.transactionsService.updateImportBatch(userId, batchId, body);
+  }
+
   @Get('summary')
   getSummary(
     @UserId() userId: string,
@@ -44,6 +53,7 @@ export class TransactionsController {
     @Query('accountId') accountId?: string,
     @Query('subtag') subtag?: string,
     @Query('period') period?: string,
+    @Query('importBatchId') importBatchId?: string,
   ) {
     return this.transactionsService.findAll(userId, {
       month: month ? Number(month) : undefined,
@@ -51,6 +61,7 @@ export class TransactionsController {
       accountId,
       subtag,
       period,
+      importBatchId,
     });
   }
 

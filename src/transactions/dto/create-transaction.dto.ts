@@ -27,6 +27,10 @@ export class CreateTransactionDto {
   @IsOptional()
   subtag?: string;
 
+  @IsString()
+  @IsOptional()
+  importBatchId?: string;
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

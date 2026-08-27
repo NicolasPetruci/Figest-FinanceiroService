@@ -62,6 +62,7 @@ export class TransactionsService {
           categoryId: targetCategoryId,
           accountId: targetAccountId,
           subtag: data.subtag || null,
+          importBatchId: data.importBatchId || null,
           tags: data.tags || [],
           userId,
         },
@@ -81,7 +82,7 @@ export class TransactionsService {
     });
   }
 
-  async findAll(userId: string, filter?: { month?: number; year?: number; accountId?: string; subtag?: string; period?: string }) {
+  async findAll(userId: string, filter?: { month?: number; year?: number; accountId?: string; subtag?: string; period?: string; importBatchId?: string }) {
     const where: any = { userId };
 
     if (filter?.accountId) {
@@ -89,6 +90,9 @@ export class TransactionsService {
     }
     if (filter?.subtag) {
       where.subtag = filter.subtag;
+    }
+    if (filter?.importBatchId) {
+      where.importBatchId = filter.importBatchId;
     }
 
     if (filter?.period === 'ANNUAL' && filter?.year) {
@@ -155,6 +159,47 @@ export class TransactionsService {
       });
 
       return updatedTx;
+    });
+  }
+
+  async updateImportBatch(userId: string, batchId: string, data: { accountId?: string; subtag?: string; categoryId?: string }) {
+    return this.prisma.$transaction(async (tx) => {
+      const batchTransactions = await tx.transaction.findMany({
+        where: { importBatchId: batchId, userId },
+      });
+
+      if (batchTransactions.length === 0) {
+        return { count: 0 };
+      }
+
+      const updateData: any = {};
+      if (data.accountId) updateData.accountId = data.accountId;
+      if (data.categoryId) updateData.categoryId = data.categoryId;
+      if (data.subtag !== undefined) updateData.subtag = data.subtag;
+
+      // Handle balance adjustment if accountId is changing
+      if (data.accountId) {
+        for (const t of batchTransactions) {
+          if (t.accountId !== data.accountId) {
+            const revertAdj = t.type === 'INCOME' ? -Number(t.amount) : Number(t.amount);
+            await tx.account.update({
+              where: { id: t.accountId },
+              data: { balance: { increment: revertAdj } },
+            });
+
+            const applyAdj = t.type === 'INCOME' ? Number(t.amount) : -Number(t.amount);
+            await tx.account.update({
+              where: { id: data.accountId },
+              data: { balance: { increment: applyAdj } },
+            });
+          }
+        }
+      }
+
+      return tx.transaction.updateMany({
+        where: { importBatchId: batchId, userId },
+        data: updateData,
+      });
     });
   }
 
