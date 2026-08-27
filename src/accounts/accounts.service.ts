@@ -42,8 +42,31 @@ export class AccountsService {
 
   async remove(id: string, userId: string) {
     await this.findOne(id, userId);
-    return this.prisma.account.delete({
-      where: { id },
+    return this.prisma.$transaction(async (tx) => {
+      let fallbackAcc = await tx.account.findFirst({
+        where: { userId, id: { not: id } },
+      });
+
+      if (!fallbackAcc) {
+        fallbackAcc = await tx.account.create({
+          data: {
+            name: 'Conta Principal',
+            bankName: 'Banco Geral',
+            type: 'CHECKING',
+            balance: 0,
+            userId,
+          },
+        });
+      }
+
+      await tx.transaction.updateMany({
+        where: { accountId: id },
+        data: { accountId: fallbackAcc.id },
+      });
+
+      return tx.account.delete({
+        where: { id },
+      });
     });
   }
 }
