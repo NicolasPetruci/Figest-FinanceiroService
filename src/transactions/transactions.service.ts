@@ -138,6 +138,7 @@ export class TransactionsService {
         data: { balance: { increment: oldAdjustment } },
       });
 
+      const newAccountId = data.accountId || oldTx.accountId;
       const updatedTx = await tx.transaction.update({
         where: { id },
         data: {
@@ -149,11 +150,30 @@ export class TransactionsService {
       // Apply new transaction effect
       const newAdjustment = updatedTx.type === 'INCOME' ? Number(updatedTx.amount) : -Number(updatedTx.amount);
       await tx.account.update({
-        where: { id: updatedTx.accountId },
+        where: { id: newAccountId },
         data: { balance: { increment: newAdjustment } },
       });
 
       return updatedTx;
+    });
+  }
+
+  async bulkUpdate(userId: string, data: { transactionIds: string[]; accountId?: string; categoryId?: string; subtag?: string }) {
+    if (!data.transactionIds || data.transactionIds.length === 0) {
+      throw new BadRequestException('transactionIds array is required');
+    }
+
+    const updatePayload: any = {};
+    if (data.accountId) updatePayload.accountId = data.accountId;
+    if (data.categoryId) updatePayload.categoryId = data.categoryId;
+    if (data.subtag !== undefined) updatePayload.subtag = data.subtag;
+
+    return this.prisma.transaction.updateMany({
+      where: {
+        id: { in: data.transactionIds },
+        userId,
+      },
+      data: updatePayload,
     });
   }
 

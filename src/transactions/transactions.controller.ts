@@ -13,6 +13,14 @@ export class TransactionsController {
     return this.transactionsService.create(userId, createTransactionDto);
   }
 
+  @Post('bulk-update')
+  bulkUpdate(
+    @UserId() userId: string,
+    @Body() body: { transactionIds: string[]; accountId?: string; categoryId?: string; subtag?: string },
+  ) {
+    return this.transactionsService.bulkUpdate(userId, body);
+  }
+
   @Get('summary')
   getSummary(
     @UserId() userId: string,
