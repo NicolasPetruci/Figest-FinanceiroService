@@ -9,24 +9,64 @@ export class TransactionsService {
 
   async create(userId: string, data: CreateTransactionDto) {
     return this.prisma.$transaction(async (tx) => {
-      const account = await tx.account.findFirst({
-        where: { id: data.accountId, userId },
-      });
-      if (!account) {
-        throw new NotFoundException('Account not found');
+      let targetAccountId = data.accountId;
+      if (targetAccountId) {
+        const acc = await tx.account.findFirst({ where: { id: targetAccountId, userId } });
+        if (!acc) targetAccountId = undefined;
+      }
+
+      if (!targetAccountId) {
+        let defaultAcc = await tx.account.findFirst({ where: { userId } });
+        if (!defaultAcc) {
+          defaultAcc = await tx.account.create({
+            data: {
+              name: 'Conta Principal (OFX)',
+              type: 'CHECKING',
+              balance: 0,
+              userId,
+            },
+          });
+        }
+        targetAccountId = defaultAcc.id;
+      }
+
+      let targetCategoryId = data.categoryId;
+      if (targetCategoryId) {
+        const cat = await tx.category.findFirst({ where: { id: targetCategoryId, OR: [{ userId }, { userId: null }] } });
+        if (!cat) targetCategoryId = undefined;
+      }
+
+      if (!targetCategoryId) {
+        let defaultCat = await tx.category.findFirst({ where: { OR: [{ userId }, { userId: null }] } });
+        if (!defaultCat) {
+          defaultCat = await tx.category.create({
+            data: {
+              name: 'Extrato Bancário',
+              icon: 'FiTag',
+              color: '#10B981',
+              type: 'BOTH',
+              userId,
+            },
+          });
+        }
+        targetCategoryId = defaultCat.id;
       }
 
       const transaction = await tx.transaction.create({
         data: {
-          ...data,
+          type: data.type,
+          amount: data.amount,
+          description: data.description,
           date: new Date(data.date),
+          categoryId: targetCategoryId,
+          accountId: targetAccountId,
           userId,
         },
       });
 
       const adjustment = data.type === 'INCOME' ? data.amount : -data.amount;
       await tx.account.update({
-        where: { id: account.id },
+        where: { id: targetAccountId },
         data: {
           balance: {
             increment: adjustment,
@@ -148,7 +188,7 @@ export class TransactionsService {
         totalIncome += amount;
       } else {
         totalExpense += amount;
-        const catName = tx.category.name;
+        const catName = tx.category ? tx.category.name : 'Geral';
         expensesByCategory[catName] = (expensesByCategory[catName] || 0) + amount;
       }
     });

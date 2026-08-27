@@ -16,12 +16,12 @@ export class CreateTransactionDto {
   date: string;
 
   @IsString()
-  @IsNotEmpty()
-  categoryId: string;
+  @IsOptional()
+  categoryId?: string;
 
   @IsString()
-  @IsNotEmpty()
-  accountId: string;
+  @IsOptional()
+  accountId?: string;
 
   @IsArray()
   @IsString({ each: true })
