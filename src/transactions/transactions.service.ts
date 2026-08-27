@@ -20,7 +20,8 @@ export class TransactionsService {
         if (!defaultAcc) {
           defaultAcc = await tx.account.create({
             data: {
-              name: 'Conta Principal (OFX)',
+              name: 'Conta Principal',
+              bankName: 'Banco Geral',
               type: 'CHECKING',
               balance: 0,
               userId,
@@ -41,7 +42,7 @@ export class TransactionsService {
         if (!defaultCat) {
           defaultCat = await tx.category.create({
             data: {
-              name: 'Extrato Bancário',
+              name: 'Geral',
               icon: 'FiTag',
               color: '#10B981',
               type: 'BOTH',
@@ -60,6 +61,8 @@ export class TransactionsService {
           date: new Date(data.date),
           categoryId: targetCategoryId,
           accountId: targetAccountId,
+          subtag: data.subtag || null,
+          tags: data.tags || [],
           userId,
         },
       });
@@ -78,9 +81,28 @@ export class TransactionsService {
     });
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string, filter?: { month?: number; year?: number; accountId?: string; subtag?: string; period?: string }) {
+    const where: any = { userId };
+
+    if (filter?.accountId) {
+      where.accountId = filter.accountId;
+    }
+    if (filter?.subtag) {
+      where.subtag = filter.subtag;
+    }
+
+    if (filter?.period === 'ANNUAL' && filter?.year) {
+      const startDate = new Date(filter.year, 0, 1);
+      const endDate = new Date(filter.year, 11, 31, 23, 59, 59, 999);
+      where.date = { gte: startDate, lte: endDate };
+    } else if (filter?.month && filter?.year) {
+      const startDate = new Date(filter.year, filter.month - 1, 1);
+      const endDate = new Date(filter.year, filter.month, 0, 23, 59, 59, 999);
+      where.date = { gte: startDate, lte: endDate };
+    }
+
     return this.prisma.transaction.findMany({
-      where: { userId },
+      where,
       include: {
         category: true,
         account: true,
@@ -157,13 +179,20 @@ export class TransactionsService {
     });
   }
 
-  async getSummary(userId: string, month: number, year: number) {
-    if (!month || !year) {
-      throw new BadRequestException('Month and year are required');
-    }
+  async getSummary(userId: string, month?: number, year?: number, period: string = 'MONTHLY') {
+    const currentYear = year || new Date().getFullYear();
+    const currentMonth = month || new Date().getMonth() + 1;
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    let startDate: Date;
+    let endDate: Date;
+
+    if (period === 'ANNUAL') {
+      startDate = new Date(currentYear, 0, 1);
+      endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+    } else {
+      startDate = new Date(currentYear, currentMonth - 1, 1);
+      endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+    }
 
     const transactions = await this.prisma.transaction.findMany({
       where: {
@@ -175,12 +204,15 @@ export class TransactionsService {
       },
       include: {
         category: true,
+        account: true,
       },
     });
 
     let totalIncome = 0;
     let totalExpense = 0;
     const expensesByCategory: Record<string, number> = {};
+    const expensesByBank: Record<string, number> = {};
+    const expensesBySubtag: Record<string, number> = {};
 
     transactions.forEach(tx => {
       const amount = Number(tx.amount);
@@ -188,8 +220,16 @@ export class TransactionsService {
         totalIncome += amount;
       } else {
         totalExpense += amount;
+        
         const catName = tx.category ? tx.category.name : 'Geral';
         expensesByCategory[catName] = (expensesByCategory[catName] || 0) + amount;
+
+        const bankName = tx.account ? (tx.account.bankName || tx.account.name) : 'Outros';
+        expensesByBank[bankName] = (expensesByBank[bankName] || 0) + amount;
+
+        if (tx.subtag) {
+          expensesBySubtag[tx.subtag] = (expensesBySubtag[tx.subtag] || 0) + amount;
+        }
       }
     });
 
@@ -203,6 +243,8 @@ export class TransactionsService {
       totalExpense,
       balance,
       expensesByCategory,
+      expensesByBank,
+      expensesBySubtag,
     };
   }
 }

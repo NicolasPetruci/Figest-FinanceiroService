@@ -16,15 +16,34 @@ export class TransactionsController {
   @Get('summary')
   getSummary(
     @UserId() userId: string,
-    @Query('month') month: string,
-    @Query('year') year: string,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+    @Query('period') period?: string,
   ) {
-    return this.transactionsService.getSummary(userId, Number(month), Number(year));
+    return this.transactionsService.getSummary(
+      userId,
+      month ? Number(month) : undefined,
+      year ? Number(year) : undefined,
+      period || 'MONTHLY',
+    );
   }
 
   @Get()
-  findAll(@UserId() userId: string) {
-    return this.transactionsService.findAll(userId);
+  findAll(
+    @UserId() userId: string,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+    @Query('accountId') accountId?: string,
+    @Query('subtag') subtag?: string,
+    @Query('period') period?: string,
+  ) {
+    return this.transactionsService.findAll(userId, {
+      month: month ? Number(month) : undefined,
+      year: year ? Number(year) : undefined,
+      accountId,
+      subtag,
+      period,
+    });
   }
 
   @Get(':id')

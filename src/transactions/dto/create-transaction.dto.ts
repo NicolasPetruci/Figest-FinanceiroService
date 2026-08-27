@@ -23,6 +23,10 @@ export class CreateTransactionDto {
   @IsOptional()
   accountId?: string;
 
+  @IsString()
+  @IsOptional()
+  subtag?: string;
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

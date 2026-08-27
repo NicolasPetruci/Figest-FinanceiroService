@@ -41,7 +41,8 @@ model Transaction {
   accountId   String          @db.Uuid
   account     Account         @relation(fields: [accountId], references: [id])
   userId      String          @db.Uuid
-  tags        String[]
+  tags        String[]        @default([])
+  subtag      String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -62,15 +63,29 @@ model Category {
 }
 
 model Account {
-  id           String        @id @default(uuid()) @db.Uuid
-  name         String
-  type         AccountType
-  balance      Decimal
-  currency     String        @default("BRL")
-  userId       String        @db.Uuid
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  bankName      String        @default("Outro Banco")
+  agency        String?
+  accountNumber String?
+  type          AccountType
+  balance       Decimal
+  currency      String        @default("BRL")
+  color         String        @default("#10B981")
+  userId        String        @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  transactions  Transaction[]
+
+  @@schema("financeiro")
+}
+
+model Subtag {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  color     String   @default("#3B82F6")
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
 
   @@schema("financeiro")
 }

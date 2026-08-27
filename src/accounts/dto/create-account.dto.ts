@@ -6,6 +6,18 @@ export class CreateAccountDto {
   @IsNotEmpty()
   name: string;
 
+  @IsString()
+  @IsOptional()
+  bankName?: string;
+
+  @IsString()
+  @IsOptional()
+  agency?: string;
+
+  @IsString()
+  @IsOptional()
+  accountNumber?: string;
+
   @IsEnum(AccountType)
   type: AccountType;
 
@@ -15,4 +27,8 @@ export class CreateAccountDto {
   @IsString()
   @IsOptional()
   currency?: string;
+
+  @IsString()
+  @IsOptional()
+  color?: string;
 }
